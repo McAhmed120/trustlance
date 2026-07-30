@@ -95,6 +95,12 @@ At [vercel.com](https://vercel.com) → **Add New → Project → import `trustl
 | **Build & Install Command** | leave as the default — do **not** override |
 | **Environment Variable** | `NEXT_PUBLIC_API_URL` = your Railway API URL |
 
+> **Root Directory must be `apps/web`.** Leaving it at the repository root, or pointing it at
+> `apps/api`, makes Vercel build the wrong workspace. Vercel is serverless; the API is a
+> long-lived Express process with Socket.IO connections and a BullMQ worker, so it cannot run
+> there at all — it belongs on Railway (step 2). If the build log shows
+> `> @trustlance/api@0.1.0 build`, the Root Directory is wrong.
+
 Leave the build command alone. `apps/web` has a `prebuild` script that compiles the
 `shared-types` workspace package, and npm runs it automatically before `build`. Overriding
 the build command skips it, and every import of `@trustlance/shared-types` then fails with
@@ -104,9 +110,13 @@ Then return to Railway, set `CLIENT_ORIGIN` to the Vercel URL, and redeploy.
 
 ### If the Vercel build fails
 
-**`Module not found: Can't resolve '@trustlance/shared-types'`**
-The workspace package was not compiled. Either the build command was overridden, or Root
-Directory is not `apps/web`. Reset both to the values above.
+**The log shows `> @trustlance/api@0.1.0 build`**
+Root Directory is set to `apps/api` (or the repo root). Vercel is building the backend, which
+does not belong there. Set Root Directory to `apps/web`.
+
+**`Cannot find module '@trustlance/shared-types'` / `Module not found`**
+The shared-types workspace was not compiled. Both apps carry a `prebuild` script that does
+this, so the usual cause is an overridden build command that skips it. Clear the override.
 
 **`No Next.js version detected`**
 Root Directory is pointing at the repository root instead of `apps/web`.
