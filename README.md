@@ -8,11 +8,13 @@ Every completed milestone produces a cryptographically signed work record that t
 freelancer owns, can export, and can prove authentic anywhere — even if this platform
 disappears.
 
-[Screenshots](#screenshots) · [Architecture](#architecture) · [How it works](#how-it-works) · [Getting started](#getting-started) · [API](#api-reference) · [Testing](#testing)
+[Screenshots](#screenshots) · [Architecture](#architecture) · [How it works](#how-it-works) · [Getting started](#getting-started) · [API](#api-reference) · [Testing](#testing) <br>
+
+https://trustlance-web.vercel.app
+
 
 <br>
-https://trustlance-web.vercel.app
-<br>
+
 
 
 <img src="docs/images/01-landing.png" alt="TrustLance landing page" width="100%">
