@@ -88,10 +88,36 @@ At [railway.app](https://railway.app) — needs browser sign-in.
 
 At [vercel.com](https://vercel.com) → **Add New → Project → import `trustlance`**.
 
-- **Root Directory:** `apps/web`
-- **Environment Variable:** `NEXT_PUBLIC_API_URL` = your Railway API URL
+| Setting | Value |
+|---|---|
+| **Root Directory** | `apps/web` — click *Edit* beside Root Directory and select it |
+| **Framework Preset** | Next.js (auto-detected) |
+| **Build & Install Command** | leave as the default — do **not** override |
+| **Environment Variable** | `NEXT_PUBLIC_API_URL` = your Railway API URL |
+
+Leave the build command alone. `apps/web` has a `prebuild` script that compiles the
+`shared-types` workspace package, and npm runs it automatically before `build`. Overriding
+the build command skips it, and every import of `@trustlance/shared-types` then fails with
+`Module not found`.
 
 Then return to Railway, set `CLIENT_ORIGIN` to the Vercel URL, and redeploy.
+
+### If the Vercel build fails
+
+**`Module not found: Can't resolve '@trustlance/shared-types'`**
+The workspace package was not compiled. Either the build command was overridden, or Root
+Directory is not `apps/web`. Reset both to the values above.
+
+**`No Next.js version detected`**
+Root Directory is pointing at the repository root instead of `apps/web`.
+
+**Build succeeds, but pages error at runtime**
+`NEXT_PUBLIC_API_URL` is missing or wrong. It is inlined at build time, so changing it needs
+a redeploy — restarting is not enough.
+
+**CORS errors in the browser console**
+`CLIENT_ORIGIN` on Railway must match the Vercel origin exactly: scheme, host, no trailing
+slash.
 
 ---
 

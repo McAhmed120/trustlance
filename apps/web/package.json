@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prebuild": "tsc -p ../../packages/shared-types/tsconfig.json"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
