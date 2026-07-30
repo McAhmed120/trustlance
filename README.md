@@ -3,6 +3,7 @@
 # TrustLance
 
 **Portable reputation and milestone escrow for freelancers.**
+https://trustlance-web.vercel.app
 
 Every completed milestone produces a cryptographically signed work record that the
 freelancer owns, can export, and can prove authentic anywhere — even if this platform
