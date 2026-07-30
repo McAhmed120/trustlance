@@ -1,0 +1,40 @@
+{
+  "name": "trustlance",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Portable reputation & milestone-escrow platform for freelancers",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @trustlance/api\" \"npm run dev -w @trustlance/web\"",
+    "build": "npm run build -w @trustlance/shared-types && npm run build -w @trustlance/api && npm run build -w @trustlance/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:migrate": "npm run db:migrate -w @trustlance/api",
+    "db:studio": "npm run db:studio -w @trustlance/api",
+    "db:generate": "npm run db:generate -w @trustlance/api",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "e2e": "node e2e/full-journey.mjs",
+    "e2e:ui": "node e2e/ui-tour.mjs",
+    "keys": "node scripts/generate-signing-keys.mjs",
+    "e2e:avatar-theme": "node e2e/avatar-theme.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "playwright": "^1.62.0"
+  },
+  "overridesReason": "Transitive security patches. npm audit's suggested 'fix' for the postcss and sharp advisories is downgrading Next to 9.3.3, which is worse than the vulnerabilities. These pin patched versions inside Next's tree instead. brace-expansion is pinned per-major (patched in 1.1.12 and 2.0.2) rather than forced to v5 — minimatch v3 calls the v1 API and a blanket v5 override breaks ESLint with 'expand is not a function'. Re-check on each Next upgrade and drop any Next has caught up to.",
+  "overrides": {
+    "postcss": "^8.5.25",
+    "sharp": "^0.35.3",
+    "brace-expansion@1": "^1.1.12",
+    "brace-expansion@2": "^2.0.2"
+  }
+}

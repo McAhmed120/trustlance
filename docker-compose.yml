@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: trustlance-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trustlance
+      POSTGRES_PASSWORD: trustlance_dev_pw
+      POSTGRES_DB: trustlance
+    ports:
+      - "5432:5432"
+    volumes:
+      - trustlance_pgdata:/var/lib/postgresql/data
+      # Creates the separate trustlance_test database used by the Day 5 suite.
+      # Only runs on first init (i.e. when the volume is empty).
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trustlance -d trustlance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: trustlance-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - trustlance_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  trustlance_pgdata:
+  trustlance_redisdata:
