@@ -2,6 +2,16 @@ import type { ApiErrorResponse, AuthResponse } from '@trustlance/shared-types';
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+/**
+ * Marks a request as coming from this app.
+ *
+ * Sent on every cookie-authenticated call. When the deployment runs split hosts
+ * the refresh cookie has to be SameSite=None, and this header is what closes the
+ * CSRF hole that opens: a custom header forces a CORS preflight, which a foreign
+ * origin cannot pass. Harmless when SameSite is Strict.
+ */
+const CLIENT_HEADER = { 'x-trustlance-client': '1' } as const;
+
 export class ApiClientError extends Error {
   readonly status: number;
   readonly code: string;
@@ -69,6 +79,7 @@ async function refreshSession(): Promise<boolean> {
       const res = await fetch(`${API_BASE}/api/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
+        headers: { ...CLIENT_HEADER },
       });
       if (!res.ok) {
         setAccessToken(null);
@@ -105,6 +116,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     // Always send cookies: the refresh token rides along on /api/auth calls.
     credentials: 'include',
     headers: {
+      ...CLIENT_HEADER,
       ...(body !== undefined && { 'Content-Type': 'application/json' }),
       ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       ...headers,

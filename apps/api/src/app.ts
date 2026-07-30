@@ -48,6 +48,9 @@ export function createApp() {
       origin: env.CLIENT_ORIGIN,
       // Required for the refresh-token cookie to travel cross-origin.
       credentials: true,
+      // Our own CSRF header must be allow-listed, or the preflight it triggers
+      // would reject the legitimate client along with everyone else.
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-trustlance-client'],
     }),
   );
   app.use(express.json({ limit: '1mb' }));

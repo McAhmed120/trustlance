@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import type { AuthResponse, LoginRequest, MeDto, RegisterRequest } from '@trustlance/shared-types';
-import { API_BASE, apiRequest, bootstrapSession, setAccessToken } from '@/lib/api';
+import { apiRequest, bootstrapSession, setAccessToken } from '@/lib/api';
 
 type Status = 'loading' | 'authenticated' | 'anonymous';
 
@@ -50,7 +50,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Best-effort: even if the server call fails, clear local state so the UI
     // never shows a logged-in shell for a session the user meant to end.
     try {
-      await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+      // Goes through apiRequest so it carries the client header that
+      // cookie-authenticated endpoints require under SameSite=None.
+      await apiRequest('/api/auth/logout', { method: 'POST' });
     } finally {
       setAccessToken(null);
       set({ user: null, status: 'anonymous' });

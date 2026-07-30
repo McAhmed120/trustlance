@@ -50,6 +50,20 @@ const envSchema = z
     /// Must match the redirect URI registered with the provider exactly.
     API_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
 
+    /**
+     * SameSite policy for the refresh cookie.
+     *
+     * 'strict' is correct whenever the API and web app share a registrable
+     * domain (localhost:3000 / localhost:4000 count as the same site, as do
+     * app.example.com / api.example.com).
+     *
+     * Split hosts — say a Vercel frontend calling a Railway API — are different
+     * *sites*, so a Strict cookie is simply never sent and login silently
+     * fails. Those deployments need 'none', which the schema below forces to be
+     * paired with Secure.
+     */
+    COOKIE_SAMESITE: z.enum(['strict', 'lax', 'none']).default('strict'),
+
     /// Google OAuth. Both optional: when either is missing the provider is
     /// simply reported as unconfigured and its endpoints return 501, so the
     /// app runs fine without a Google Cloud project.
@@ -64,6 +78,18 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ['JWT_REFRESH_SECRET'],
         message: 'JWT_REFRESH_SECRET must differ from JWT_ACCESS_SECRET',
+      });
+    }
+
+    // Browsers reject SameSite=None without Secure, so the cookie would be
+    // dropped entirely — a silent, confusing "login does nothing" in production.
+    // Fail at boot with an explanation instead.
+    if (val.COOKIE_SAMESITE === 'none' && val.NODE_ENV !== 'production') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['COOKIE_SAMESITE'],
+        message:
+          "COOKIE_SAMESITE='none' requires HTTPS (Secure cookies), so it is only valid when NODE_ENV=production",
       });
     }
   });

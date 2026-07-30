@@ -257,13 +257,23 @@ export async function revokeAllUserTokens(userId: string): Promise<void> {
 
 /** Cookie options for the refresh token. */
 export function refreshCookieOptions(expires: Date) {
+  const sameSite = env.COOKIE_SAMESITE;
   return {
-    httpOnly: true,
     // Blocks JS access entirely, so XSS cannot exfiltrate the refresh token.
-    secure: env.isProduction,
-    // Strict is viable because the web app calls the API directly rather than
-    // relying on top-level cross-site navigations carrying the cookie.
-    sameSite: 'strict' as const,
+    httpOnly: true,
+    // SameSite=None is invalid without Secure — browsers drop the cookie
+    // outright — so 'none' always implies Secure regardless of NODE_ENV.
+    secure: env.isProduction || sameSite === 'none',
+    /*
+     * Strict by default, which is right when the API and web app share a
+     * registrable domain. Split-host deployments must set COOKIE_SAMESITE=none,
+     * or the cookie is never sent and login appears to do nothing.
+     *
+     * When it is 'none', /api/auth/refresh additionally demands a custom header
+     * (see requireCustomHeader) so a foreign origin cannot silently trigger a
+     * rotation and log the victim out.
+     */
+    sameSite,
     expires,
     path: '/api/auth',
   };

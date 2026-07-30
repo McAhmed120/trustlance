@@ -8,6 +8,7 @@ import { ApiError } from '../../lib/api-error.js';
 import { validateBody } from '../../middleware/validate.js';
 import { requireAuth } from '../../middleware/require-auth.js';
 import { authRateLimit } from '../../middleware/rate-limit.js';
+import { requireCustomHeader } from '../../middleware/require-custom-header.js';
 import { loginSchema, registerSchema } from './auth.schemas.js';
 import { getUserById, registerUser, verifyCredentials } from './auth.service.js';
 import { buildGoogleAuthUrl, completeGoogleCallback, googleConfigured } from './oauth.service.js';
@@ -65,7 +66,7 @@ authRouter.post('/login', authRateLimit, validateBody(loginSchema), async (req, 
  * Takes the refresh token from the httpOnly cookie only — never the body — so
  * a page-embedded script has no way to supply one it obtained elsewhere.
  */
-authRouter.post('/refresh', async (req, res) => {
+authRouter.post('/refresh', requireCustomHeader, async (req, res) => {
   const presented = req.cookies?.[REFRESH_COOKIE] as string | undefined;
   if (!presented) throw ApiError.unauthorized('No refresh token provided');
 
@@ -97,7 +98,7 @@ authRouter.post('/refresh', async (req, res) => {
  * Intentionally does not require an access token: a user whose access token
  * has already expired must still be able to end their session.
  */
-authRouter.post('/logout', async (req, res) => {
+authRouter.post('/logout', requireCustomHeader, async (req, res) => {
   const presented = req.cookies?.[REFRESH_COOKIE] as string | undefined;
   if (presented) await revokeRefreshToken(presented);
   res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
