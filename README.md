@@ -8,7 +8,11 @@ Every completed milestone produces a cryptographically signed work record that t
 freelancer owns, can export, and can prove authentic anywhere — even if this platform
 disappears.
 
-[Architecture](#architecture) · [How it works](#how-it-works) · [Getting started](#getting-started) · [API](#api-reference) · [Testing](#testing)
+[Screenshots](#screenshots) · [Architecture](#architecture) · [How it works](#how-it-works) · [Getting started](#getting-started) · [API](#api-reference) · [Testing](#testing)
+
+<br>
+
+<img src="docs/images/01-landing.png" alt="TrustLance landing page" width="100%">
 
 </div>
 
@@ -31,6 +35,62 @@ TrustLance attacks both halves:
 
 > **Escrow is simulated.** No real money moves anywhere in this build. Wallet balances are
 > demo values so the full engine can be exercised end to end.
+
+---
+
+## Screenshots
+
+Every screenshot below is a real session — the escrow states, the signed record and the
+verification result are all genuine, not mockups. Regenerate them with
+`npm run screenshots`.
+
+### The contract workspace
+
+Milestones with live escrow state, chat, tamper-evident time logs and files. The header
+totals are summed from the ledger, never stored.
+
+<img src="docs/images/04-contract-workspace.png" alt="Contract workspace showing a released milestone and one funded" width="100%">
+
+### Verifying a record with no account
+
+Paste a signed record into the public verifier. It checks the Ed25519 signature against the
+platform's public key and reads no database — the same check any third party can run.
+
+<img src="docs/images/07-verifier.png" alt="Public verifier confirming a valid signature" width="100%">
+
+### Public trust profile
+
+What a client sees when doing due diligence. The trust score is computed from signed work,
+not self-reported.
+
+<img src="docs/images/06-trust-profile.png" alt="Public trust profile with verified work records" width="100%">
+
+<details>
+<summary><b>More screens</b> — job board, wallet ledger, time tracking, profile, dark mode</summary>
+
+<br>
+
+**Job board** — search, category and budget filters
+
+<img src="docs/images/03-job-board.png" alt="Job board" width="100%">
+
+**Wallet** — every figure summed from the append-only ledger
+
+<img src="docs/images/08-wallet-ledger.png" alt="Wallet and transaction ledger" width="100%">
+
+**Tamper-evident time tracking** — each entry hash-chained to the one before it
+
+<img src="docs/images/05-time-tracking.png" alt="Time tracking with hash chain verification" width="100%">
+
+**Profile** — inline editing, avatar upload, exportable reputation bundle
+
+<img src="docs/images/09-profile.png" alt="Freelancer profile" width="100%">
+
+**Dark mode** — light, dark and system, applied before first paint
+
+<img src="docs/images/02-landing-dark.png" alt="Landing page in dark mode" width="100%">
+
+</details>
 
 ---
 

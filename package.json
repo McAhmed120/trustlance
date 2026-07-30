@@ -24,7 +24,8 @@
     "e2e": "node e2e/full-journey.mjs",
     "e2e:ui": "node e2e/ui-tour.mjs",
     "keys": "node scripts/generate-signing-keys.mjs",
-    "e2e:avatar-theme": "node e2e/avatar-theme.mjs"
+    "e2e:avatar-theme": "node e2e/avatar-theme.mjs",
+    "screenshots": "node scripts/capture-screenshots.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
