@@ -1,0 +1,432 @@
+// TrustLance data model — documentation §8.
+// Sprint 1 covers users, auth, and profiles only. Jobs, contracts, milestones,
+// escrow_transactions, work_records, disputes, time_entries and messages arrive
+// in Sprints 2-5.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  FREELANCER
+  CLIENT
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  /// Null for accounts created through an OAuth provider — they have no
+  /// password to verify. Login must never treat null as 'matches anything'.
+  passwordHash String?
+  role         Role
+  /// Set by the Day 19 email-verification flow. The column exists from Sprint 1
+  /// so it doesn't require a migration on already-live accounts later.
+  emailVerified Boolean @default(false)
+
+  /// Computed in Sprint 4 (Day 18) from completed contracts, average rating,
+  /// dispute rate, and account age (§10.3). Null until a user has any history.
+  trustScore Float?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  profile       Profile?
+  refreshTokens RefreshToken[]
+  oauthAccounts OAuthAccount[]
+  jobs          Job[]          @relation("ClientJobs")
+  proposals     Proposal[]     @relation("FreelancerProposals")
+  workRecords   WorkRecord[]   @relation("FreelancerRecords")
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Profile {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  displayName String
+  bio         String?
+  /// Path on disk of the uploaded avatar. Null means fall back to initials.
+  /// Stored as a path, not bytes: images in Postgres bloat backups and every
+  /// query that touches the row.
+  avatarPath  String?
+  skills      String[] @default([])
+  /// Integer cents, never a float (§11). Every monetary column in TrustLance
+  /// follows this convention — see escrow amounts in Sprint 3.
+  hourlyRateCents Int?
+  portfolioLinks  String[] @default([])
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("profiles")
+}
+
+/// Rotating refresh tokens (§11).
+///
+/// Not in the §8 ER diagram, but rotation is impossible without server-side
+/// state: to reject a token that has already been used, the server has to
+/// remember that it was used. See the README "Deviations" section.
+model RefreshToken {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 of the token, never the token itself — a leaked database dump
+  /// must not hand the attacker usable sessions.
+  tokenHash String @unique
+
+  /// All tokens descended from one login share a familyId. Presenting an
+  /// already-rotated token means it leaked, so the whole family is revoked.
+  familyId String @db.Uuid
+
+  expiresAt         DateTime @db.Timestamptz(3)
+  revokedAt         DateTime? @db.Timestamptz(3)
+  /// Set when this token is rotated out, pointing at its successor. Makes the
+  /// chain auditable when investigating a reuse incident.
+  replacedByTokenId String?   @db.Uuid
+
+  /// Captured for the Day 19 suspicious-signup work.
+  userAgent String?
+  ip        String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 2 — Jobs, proposals, contracts, milestones (documentation §8)
+// ---------------------------------------------------------------------------
+
+enum JobStatus {
+  OPEN
+  CLOSED
+}
+
+model Job {
+  id       String @id @default(uuid()) @db.Uuid
+  clientId String @db.Uuid
+  client   User   @relation("ClientJobs", fields: [clientId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String
+  category    String
+  /// Integer cents (§11).
+  budgetCents Int
+  skills      String[]  @default([])
+  status      JobStatus @default(OPEN)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  proposals Proposal[]
+  contracts Contract[]
+
+  @@index([status, category])
+  @@index([clientId])
+  @@map("jobs")
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+model Proposal {
+  id           String @id @default(uuid()) @db.Uuid
+  jobId        String @db.Uuid
+  job          Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  freelancerId String @db.Uuid
+  freelancer   User   @relation("FreelancerProposals", fields: [freelancerId], references: [id], onDelete: Cascade)
+
+  coverLetter String
+  amountCents Int
+  status      ProposalStatus @default(PENDING)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  contract Contract?
+
+  /// One live bid per freelancer per job.
+  @@unique([jobId, freelancerId])
+  @@index([freelancerId])
+  @@map("proposals")
+}
+
+enum ContractStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model Contract {
+  id           String   @id @default(uuid()) @db.Uuid
+  jobId        String   @db.Uuid
+  job          Job      @relation(fields: [jobId], references: [id])
+  proposalId   String   @unique @db.Uuid
+  proposal     Proposal @relation(fields: [proposalId], references: [id])
+  clientId     String   @db.Uuid
+  freelancerId String   @db.Uuid
+
+  totalAmountCents Int
+  status           ContractStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  milestones  Milestone[]
+  messages    Message[]
+  timeEntries TimeEntry[]
+  files       FileAttachment[]
+
+  @@index([clientId])
+  @@index([freelancerId])
+  @@map("contracts")
+}
+
+/// Escrow state machine states (§10.2), plus the transitions the diagram in
+/// the docs missed: a rework loop (SUBMITTED -> IN_PROGRESS) and CANCELLED.
+/// APPROVED/RELEASED are collapsed: approval atomically writes the release
+/// ledger row, so a persisted APPROVED-but-not-RELEASED state cannot exist.
+enum MilestoneState {
+  CREATED
+  FUNDED
+  IN_PROGRESS
+  SUBMITTED
+  DISPUTED
+  RELEASED
+  RESOLVED
+  CANCELLED
+}
+
+model Milestone {
+  id         String   @id @default(uuid()) @db.Uuid
+  contractId String   @db.Uuid
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  amountCents Int
+  dueDate     DateTime?      @db.Timestamptz(3)
+  state       MilestoneState @default(CREATED)
+  /// Explicit ordering. Milestones in one plan are created in a single
+  /// transaction and share a createdAt to the millisecond, so ordering by
+  /// timestamp is non-deterministic — the plan rendered out of order.
+  position    Int            @default(0)
+
+  submissionNote String?
+  submittedAt    DateTime? @db.Timestamptz(3)
+  /// Set on submission: silence past this instant lets the auto-release worker
+  /// approve on the client's behalf (Sprint 3 Day 13).
+  autoReleaseAt  DateTime? @db.Timestamptz(3)
+  approvedAt     DateTime? @db.Timestamptz(3)
+  /// 1-5, given by the client at approval. Null on auto-release.
+  rating         Int?
+  feedback       String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  transactions EscrowTransaction[]
+  disputes     Dispute[]
+  workRecord   WorkRecord?
+
+  @@index([contractId])
+  @@index([state, autoReleaseAt])
+  @@map("milestones")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  /// Denormalised display payload (title, link, ids). Not a source of truth.
+  payload   Json
+  readAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 3 — Escrow ledger (§10.2)
+// ---------------------------------------------------------------------------
+
+enum LedgerEntryType {
+  /// Demo-mode top-up: external -> user wallet.
+  DEPOSIT
+  /// Client wallet -> milestone escrow.
+  FUND
+  /// Milestone escrow -> freelancer wallet.
+  RELEASE
+  /// Milestone escrow -> client wallet.
+  REFUND
+}
+
+/// Append-only. Rows are NEVER updated or deleted — balances are *derived* by
+/// summing this table, so there is no separately-maintained balance column to
+/// drift out of sync. This one rule is what prevents the "funds released
+/// twice" class of bugs (§10.2).
+model EscrowTransaction {
+  id             String          @id @default(uuid()) @db.Uuid
+  type           LedgerEntryType
+  amountCents    Int
+  milestoneId    String?         @db.Uuid
+  milestone      Milestone?      @relation(fields: [milestoneId], references: [id])
+  /// Wallet debited (FUND).
+  fromUserId     String?         @db.Uuid
+  /// Wallet credited (DEPOSIT, RELEASE, REFUND).
+  toUserId       String?         @db.Uuid
+  /// Client-supplied key making money endpoints retry-safe (§11).
+  idempotencyKey String?         @unique
+  note           String?
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+
+  @@index([milestoneId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("escrow_transactions")
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 4 — Signed, portable work records (§10.1)
+// ---------------------------------------------------------------------------
+
+model WorkRecord {
+  id           String    @id @default(uuid()) @db.Uuid
+  milestoneId  String    @unique @db.Uuid
+  milestone    Milestone @relation(fields: [milestoneId], references: [id])
+  freelancerId String    @db.Uuid
+  freelancer   User      @relation("FreelancerRecords", fields: [freelancerId], references: [id])
+  clientId     String    @db.Uuid
+  contractId   String    @db.Uuid
+
+  /// The compact JWS. This string alone — plus the platform public key — proves
+  /// the record, with no database access. That is the "portable" property.
+  jws     String
+  /// Convenience copy of the signed claims for display; the JWS is canonical.
+  payload Json
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([freelancerId])
+  @@map("work_records")
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 5 — Collaboration & disputes
+// ---------------------------------------------------------------------------
+
+model Message {
+  id         String   @id @default(uuid()) @db.Uuid
+  contractId String   @db.Uuid
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  senderId   String   @db.Uuid
+  body       String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([contractId, createdAt])
+  @@map("messages")
+}
+
+/// Hash-chained timer entries (§10.4): hash = SHA256(entryData + prevHash).
+/// Editing or deleting any past row breaks every hash after it.
+model TimeEntry {
+  id           String    @id @default(uuid()) @db.Uuid
+  contractId   String    @db.Uuid
+  contract     Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  freelancerId String    @db.Uuid
+  startedAt    DateTime  @db.Timestamptz(3)
+  endedAt      DateTime? @db.Timestamptz(3)
+  note         String?
+  prevHash     String
+  hash         String
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([contractId, createdAt])
+  @@map("time_entries")
+}
+
+model FileAttachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  contractId String   @db.Uuid
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  uploaderId String   @db.Uuid
+  filename   String
+  storedPath String
+  mimeType   String
+  sizeBytes  Int
+  /// Re-uploading the same filename increments this — cheap versioning.
+  version    Int      @default(1)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([contractId])
+  @@map("file_attachments")
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+model Dispute {
+  id          String    @id @default(uuid()) @db.Uuid
+  milestoneId String    @db.Uuid
+  milestone   Milestone @relation(fields: [milestoneId], references: [id])
+  raisedById  String    @db.Uuid
+  reason      String
+  status      DisputeStatus @default(OPEN)
+
+  /// Arbitrator outcome: percentage of escrow released to the freelancer
+  /// (0-100); the remainder refunds to the client.
+  freelancerPct  Int?
+  resolutionNote String?
+  resolvedById   String?   @db.Uuid
+  resolvedAt     DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([status])
+  @@map("disputes")
+}
+
+/// A federated identity linked to a TrustLance account.
+///
+/// Separate table rather than columns on User so one account can hold several
+/// providers (Google today, Apple/GitHub later) without a schema change each
+/// time, and so a provider can be unlinked by deleting one row.
+model OAuthAccount {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Lowercase provider key, e.g. "google".
+  provider String
+  /// The provider's stable user id (Google's `sub`). NOT the email — emails
+  /// change hands, `sub` does not.
+  providerAccountId String
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  /// One identity per provider can map to exactly one account.
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
