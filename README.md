@@ -2,7 +2,7 @@
 
 # TrustLance
 
-**Portable reputation and milestone escrow for freelancers.**
+**Portable reputation and milestone escrow for freelancers.**</br>
 https://trustlance-web.vercel.app
 
 Every completed milestone produces a cryptographically signed work record that the
