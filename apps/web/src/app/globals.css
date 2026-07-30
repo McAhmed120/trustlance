@@ -1,0 +1,330 @@
+@import "tailwindcss";
+
+/*
+ * TrustLance design system — Upwork-inspired.
+ *
+ * Three deliberate choices copied from Upwork's visual language:
+ *
+ *  1. A single confident green as the only accent. Everything actionable is
+ *     green; nothing decorative is.
+ *  2. Green-tinted neutrals rather than pure grey. #001E00 text on #FFFFFF
+ *     reads warmer and more deliberate than #111 on white, and it makes the
+ *     green feel native instead of bolted on.
+ *  3. Generous scale. 16px body text, roomy controls, wide containers. The
+ *     previous pass was too cramped — small text in narrow columns made a
+ *     marketplace feel like a settings panel.
+ *
+ * Escrow state colours stay outside the accent system: money states must never
+ * share a hue with ordinary UI, or "Released" stops reading as different from
+ * a hover.
+ */
+:root {
+  --background: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f7faf7;
+  --surface-3: #f2f7f2;
+  --foreground: #001e00;
+  --muted: #5e6d55;
+  --border: #d5e0d5;
+  --border-strong: #b3c4b3;
+
+  --accent: #14a800;
+  --accent-hover: #108a00;
+  --accent-fg: #ffffff;
+  --accent-soft: #e4f4e0;
+
+  --success: #14a800;
+  --success-bg: #e4f4e0;
+  --warning: #8a5300;
+  --warning-bg: #fdf3e3;
+  --danger: #be0611;
+  --danger-bg: #fdeceb;
+  --info: #1f57c3;
+  --info-bg: #e8effc;
+}
+
+/*
+ * Dark palette, declared once and applied from two places:
+ *
+ *   1. OS preference — but ONLY when the user hasn't chosen light explicitly.
+ *      Without the :not() guard, "light" would be unselectable on a machine
+ *      set to dark, because the media query would keep winning.
+ *   2. An explicit data-theme="dark" on <html>, which also has to work on a
+ *      machine set to light.
+ *
+ * Both selectors carry the same declarations. Tailwind v4's @theme inline maps
+ * them to utility colours, so every component follows automatically.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --background: #0c120c;
+    --surface: #131b13;
+    --surface-2: #182118;
+    --surface-3: #1d281d;
+    --foreground: #eaf2ea;
+    --muted: #9aab94;
+    --border: #263326;
+    --border-strong: #384938;
+
+    --accent: #3fd42a;
+    --accent-hover: #58e044;
+    --accent-fg: #06210a;
+    --accent-soft: #162914;
+
+    --success: #58d94a;
+    --success-bg: #14290f;
+    --warning: #f0b959;
+    --warning-bg: #2c2011;
+    --danger: #ff8a84;
+    --danger-bg: #2e1414;
+    --info: #9dbaff;
+    --info-bg: #141d33;
+  }
+}
+
+/* Explicit dark choice — wins even when the OS is set to light. */
+:root[data-theme='dark'] {
+  --background: #0c120c;
+  --surface: #131b13;
+  --surface-2: #182118;
+  --surface-3: #1d281d;
+  --foreground: #eaf2ea;
+  --muted: #9aab94;
+  --border: #263326;
+  --border-strong: #384938;
+
+  --accent: #3fd42a;
+  --accent-hover: #58e044;
+  --accent-fg: #06210a;
+  --accent-soft: #162914;
+
+  --success: #58d94a;
+  --success-bg: #14290f;
+  --warning: #f0b959;
+  --warning-bg: #2c2011;
+  --danger: #ff8a84;
+  --danger-bg: #2e1414;
+  --info: #9dbaff;
+  --info-bg: #141d33;
+}
+
+/* Tells the browser to theme scrollbars and form controls to match. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  /* 16px body baseline — the previous 14px default was the main reason the UI
+     read as cramped. */
+  font-size: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible focus for keyboard users, without a ring on plain mouse clicks. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* ---------------------------------------------------------------- forms -- */
+  .input {
+    @apply w-full rounded-lg border border-border bg-surface px-4 py-3
+           text-base text-foreground placeholder:text-muted
+           transition-colors
+           hover:border-border-strong
+           focus:border-accent focus-visible:outline-none
+           disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .label {
+    @apply block text-base font-medium text-foreground;
+  }
+
+  /* -------------------------------------------------------------- buttons -- */
+  /*
+   * Tailwind v4's @apply only accepts real utilities — it cannot apply another
+   * custom component class. So shared geometry is declared once across the
+   * whole selector list, and each variant adds only its colours.
+   */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger {
+    @apply inline-flex shrink-0 items-center justify-center gap-2 rounded-full
+           px-6 py-3 text-base font-medium leading-none
+           transition-all duration-150
+           disabled:pointer-events-none disabled:opacity-45;
+  }
+  .btn-primary {
+    @apply bg-accent text-accent-fg hover:bg-accent-hover;
+  }
+  .btn-secondary {
+    @apply border border-accent bg-transparent text-accent hover:bg-accent-soft;
+  }
+  .btn-ghost {
+    @apply border border-border bg-surface text-foreground hover:bg-surface-2;
+  }
+  .btn-danger {
+    @apply border border-danger bg-transparent text-danger hover:bg-danger-bg;
+  }
+  .btn-sm {
+    @apply px-4 py-2 text-sm;
+  }
+  .btn-lg {
+    @apply px-8 py-4 text-lg;
+  }
+
+  /* ---------------------------------------------------------------- cards -- */
+  .card {
+    @apply rounded-2xl border border-border bg-surface p-6 transition-colors;
+  }
+  .card-hover {
+    @apply hover:border-accent hover:bg-surface-2;
+  }
+
+  /* --------------------------------------------------------------- layout -- */
+  /* Wide by default. A marketplace listing needs room to breathe. */
+  .container-wide {
+    @apply mx-auto w-full max-w-6xl px-6 lg:px-8;
+  }
+  .container-mid {
+    @apply mx-auto w-full max-w-4xl px-6 lg:px-8;
+  }
+  .container-narrow {
+    @apply mx-auto w-full max-w-2xl px-6;
+  }
+
+  /* ----------------------------------------------------------------- misc -- */
+  .pill {
+    @apply inline-flex items-center rounded-full bg-surface-3 px-3 py-1
+           text-sm text-muted;
+  }
+  .link {
+    @apply text-accent underline decoration-accent/30 underline-offset-2
+           hover:decoration-accent;
+  }
+}
+
+/* ─────────────────────────────── motion ─────────────────────────────── */
+
+/*
+ * Scroll reveal. The element is laid out normally from the start — only opacity
+ * and transform change — so nothing reflows and the animation can run on the
+ * compositor.
+ */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal[data-revealed='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Hero content animates on load rather than on scroll — it's already visible. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Slow drift on the hero's ambient glow, so the panel isn't static. */
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-3%, 4%, 0) scale(1.08);
+  }
+}
+.drift {
+  animation: drift 18s ease-in-out infinite;
+}
+
+/* Cards lift slightly toward the pointer. */
+.lift {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease;
+}
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.18);
+}
+
+/*
+ * One global off-switch. Every animation above is decorative, so honouring the
+ * OS setting costs nothing and vestibular disorders are a real accessibility
+ * concern — not a stylistic preference.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal[data-revealed='false'] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .rise-in,
+  .drift {
+    animation: none !important;
+  }
+  .lift:hover {
+    transform: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
